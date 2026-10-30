@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff & Attendance Management System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .table-scrollbar::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+        .table-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .table-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .table-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        @media print {
+            header, nav, .no-print {
+                display: none !important;
+            }
+            body {
+                background: white !important;
+            }
+            .print-container {
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+            .print-company-header {
+                display: block !important;
+            }
+        }
+        .print-company-header {
+            display: none;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col text-slate-800">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-indigo-600 p-2 rounded-lg text-white">
+                        <i data-lucide="clock" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 id="header-company-name" class="text-lg font-bold leading-tight">StaffSync</h1>
+                        <p id="header-company-sub" class="text-xs text-slate-400">Attendance & Staff Portal</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="flex space-x-1 sm:space-x-2">
+                    <button onclick="switchTab('attendance')" id="tab-btn-attendance" class="px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 bg-indigo-600 text-white">
+                        <i data-lucide="calendar-check" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Daily Attendance</span>
+                    </button>
+                    <button onclick="switchTab('reports')" id="tab-btn-reports" class="px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800">
+                        <i data-lucide="file-text" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">History & Reports</span>
+                    </button>
+                    <button onclick="switchTab('staff')" id="tab-btn-staff" class="px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800">
+                        <i data-lucide="users" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Staff Directory</span>
+                    </button>
+                    <button onclick="switchTab('summary')" id="tab-btn-summary" class="px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Summary & Payroll</span>
+                    </button>
+                    <button onclick="switchTab('company')" id="tab-btn-company" class="px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800">
+                        <i data-lucide="building-2" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Company Profile</span>
+                    </button>
+                </nav>
+
+                <!-- Data Actions -->
+                <div class="flex items-center space-x-2">
+                    <button onclick="exportToCSV()" title="Export Current View CSV" class="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                        <i data-lucide="download" class="w-5 h-5"></i>
+                    </button>
+                    <button onclick="triggerImport()" title="Import Data JSON" class="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                        <i data-lucide="upload" class="w-5 h-5"></i>
+                    </button>
+                    <input type="file" id="import-file-input" class="hidden" accept=".json" onchange="importJSON(event)">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Notification Banner -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ================= TAB 1: DAILY ATTENDANCE ================= -->
+        <section id="tab-attendance" class="space-y-6">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center space-x-4 flex-wrap gap-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Attendance Date</label>
+                        <input type="date" id="attendance-date-picker" onchange="loadAttendanceForDate()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button onclick="resetDefaults()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reset Sheet
+                    </button>
+                    <button onclick="saveAttendance()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg text-sm shadow-sm transition-colors flex items-center gap-2">
+                        <i data-lucide="save" class="w-4 h-4"></i> Save Attendance
+                    </button>
+                </div>
+            </div>
+
+            <!-- Attendance Data Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto table-scrollbar">
+                    <table class="w-full text-left text-xs sm:text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-semibold text-[11px] tracking-wider">
+                                <th class="p-3 text-center w-12">S.No</th>
+                                <th class="p-3 min-w-[140px]">Name</th>
+                                <th class="p-3 min-w-[80px]">Default In</th>
+                                <th class="p-3 min-w-[110px]">In Time</th>
+                                <th class="p-3 min-w-[80px]">Default Out</th>
+                                <th class="p-3 min-w-[110px]">Out Time</th>
+                                <th class="p-3 min-w-[90px]">Early Coming</th>
+                                <th class="p-3 min-w-[90px]">Late Coming</th>
+                                <th class="p-3 min-w-[80px]">OT Hours</th>
+                                <th class="p-3 min-w-[90px]">Total Hours</th>
+                                <th class="p-3 min-w-[100px]">Daily Advance (₹)</th>
+                                <th class="p-3 min-w-[110px]">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendance-table-body" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- Dynamically generated attendance rows -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="empty-attendance-msg" class="hidden p-8 text-center text-slate-400">
+                    <i data-lucide="users" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+                    <p class="font-medium">No staff members found. Please add staff in the Directory tab.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 2: HISTORY & REPORTS ================= -->
+        <section id="tab-reports" class="hidden space-y-6">
+            <!-- Filter Controls Toolbar -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-end justify-between gap-4 no-print">
+                <div class="flex items-center space-x-4 flex-wrap gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Filter Staff</label>
+                        <select id="report-staff-filter" onchange="renderReportTable()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="ALL">All Staff Members</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">From Date</label>
+                        <input type="date" id="report-from-date" onchange="renderReportTable()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">To Date</label>
+                        <input type="date" id="report-to-date" onchange="renderReportTable()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button onclick="shareReportToWhatsApp()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg text-sm shadow-sm transition-colors flex items-center gap-2">
+                        <i data-lucide="message-circle" class="w-4 h-4"></i> Send WhatsApp
+                    </button>
+                    <button onclick="triggerPrintWithColumns()" class="bg-slate-800 hover:bg-slate-900 text-white font-medium px-4 py-2 rounded-lg text-sm shadow-sm transition-colors flex items-center gap-2">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Print Report
+                    </button>
+                    <button onclick="exportReportToCSV()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg text-sm shadow-sm transition-colors flex items-center gap-2">
+                        <i data-lucide="download" class="w-4 h-4"></i> Export CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Print Column Selector Toolbar -->
+            <div class="bg-slate-100 border border-slate-200 p-3 rounded-xl flex flex-wrap items-center gap-4 text-xs font-medium text-slate-700 no-print">
+                <span class="font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1"><i data-lucide="columns" class="w-3.5 h-3.5"></i> Columns to Print/View:</span>
+                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked onchange="toggleColumn('date')" id="chk-col-date"> Date</label>
+                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked onchange="toggleColumn('name')" id="chk-col-name"> Staff Name</label>
+                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked onchange="toggleColumn('def-in')" id="chk-col-def-in"> Default In</label>
+                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked onchange="toggleColumn('in')" id="chk-col-in"> In Time</label>
+                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked onchange="toggleColumn('def-out')" id="chk-col-def-out"> Default Out</label>
+                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked onchange="toggleColumn('out')" id="chk-col-out"> Out Time</label>
+                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked onchange="toggleColumn('early')" id="chk-col-early"> Early Coming</label>
+                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked onchange="toggleColumn('late')" id="chk-col-late"> Late Coming</label>
+                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked onchange="toggleColumn('ot')" id="chk-col-ot"> OT Hours</label>
+                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked onchange="toggleColumn('total')" id="chk-col-total"> Total Hours</label>
+                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked onchange="toggleColumn('adv')" id="chk-col-adv"> Advance</label>
+                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked onchange="toggleColumn('status')" id="chk-col-status"> Status</label>
+            </div>
+
+            <!-- Filtered Summary Statistics Cards -->
+            <div id="report-summary-cards" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-[11px] font-semibold text-emerald-600 uppercase tracking-wide">Present Days</p>
+                    <p id="card-present-days" class="text-lg font-bold text-slate-800 mt-1">0</p>
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-[11px] font-semibold text-amber-600 uppercase tracking-wide">Half Days</p>
+                    <p id="card-half-days" class="text-lg font-bold text-slate-800 mt-1">0</p>
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-[11px] font-semibold text-red-600 uppercase tracking-wide">Absent Days</p>
+                    <p id="card-absent-days" class="text-lg font-bold text-slate-800 mt-1">0</p>
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Total Gross Salary</p>
+                    <p id="card-gross-salary" class="text-lg font-bold text-slate-800 mt-1">₹0</p>
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-[11px] font-semibold text-red-500 uppercase tracking-wide">Advance Received</p>
+                    <p id="card-advance-received" class="text-lg font-bold text-red-600 mt-1">₹0</p>
+                </div>
+                <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-200 shadow-sm">
+                    <p class="text-[11px] font-semibold text-indigo-600 uppercase tracking-wide">Balance Payable</p>
+                    <p id="card-balance-salary" class="text-lg font-bold text-indigo-700 mt-1">₹0</p>
+                </div>
+            </div>
+
+            <!-- Report Results Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-container">
+                <div class="print-company-header p-4 border-b border-slate-300 text-center">
+                    <h2 id="print-comp-name" class="text-xl font-bold text-slate-900"></h2>
+                    <p id="print-comp-addr" class="text-xs text-slate-600 mt-0.5"></p>
+                    <p id="print-comp-phone" class="text-xs text-slate-600 mt-0.5"></p>
+                </div>
+                <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Attendance History Report</h2>
+                        <p class="text-xs text-slate-500" id="report-subtitle">Displaying records</p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto table-scrollbar">
+                    <table class="w-full text-left text-xs sm:text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 border-b border-slate-200 text-slate-600 uppercase font-semibold text-[11px] tracking-wider">
+                                <th class="p-3 min-w-[90px] col-date">Date</th>
+                                <th class="p-3 min-w-[130px] col-name">Staff Name</th>
+                                <th class="p-3 min-w-[80px] col-def-in">Default In</th>
+                                <th class="p-3 min-w-[80px] col-in">In Time</th>
+                                <th class="p-3 min-w-[80px] col-def-out">Default Out</th>
+                                <th class="p-3 min-w-[80px] col-out">Out Time</th>
+                                <th class="p-3 min-w-[90px] col-early">Early Coming</th>
+                                <th class="p-3 min-w-[90px] col-late">Late Coming</th>
+                                <th class="p-3 min-w-[80px] col-ot">OT Hours</th>
+                                <th class="p-3 min-w-[90px] col-total">Total Hours</th>
+                                <th class="p-3 min-w-[90px] col-adv">Advance (₹)</th>
+                                <th class="p-3 min-w-[90px] col-status">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-table-body" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- Dynamically generated report rows -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="empty-report-msg" class="hidden p-8 text-center text-slate-400">
+                    <i data-lucide="file-x" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+                    <p class="font-medium">No attendance logs match the selected filters.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 3: STAFF DIRECTORY (CRUD) ================= -->
+        <section id="tab-staff" class="hidden space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Staff Management Directory</h2>
+                    <p class="text-xs text-slate-500">Add, update, or remove employee master records and shift schedules.</p>
+                </div>
+                <button onclick="openStaffModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg text-sm shadow-sm transition-colors flex items-center justify-center gap-2">
+                    <i data-lucide="user-plus" class="w-4 h-4"></i> Add New Staff
+                </button>
+            </div>
+
+            <!-- Staff List Cards -->
+            <div id="staff-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Dynamically Populated Staff Cards -->
+            </div>
+            
+            <div id="empty-staff-msg" class="hidden bg-white p-12 text-center rounded-xl border border-slate-200">
+                <i data-lucide="user-x" class="w-12 h-12 mx-auto text-slate-300 mb-3"></i>
+                <h3 class="text-base font-semibold text-slate-700">No Staff Recorded</h3>
+                <p class="text-xs text-slate-500 mt-1">Get started by creating your first staff record.</p>
+            </div>
+        </section>
+
+        <!-- ================= TAB 4: MONTHLY SUMMARY & PAYROLL ================= -->
+        <section id="tab-summary" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Staff Attendance Summary & Payroll Ledger</h2>
+                        <p class="text-xs text-slate-500">Calculates presence count, gross earnings based on day rate, total daily advances taken, and net payable salary.</p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto table-scrollbar">
+                    <table class="w-full text-left text-xs sm:text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-slate-500 uppercase text-[11px] font-semibold bg-slate-50">
+                                <th class="py-3 px-3">Staff Name</th>
+                                <th class="py-3 px-3 text-center">Present Days</th>
+                                <th class="py-3 px-3 text-center">Half Days</th>
+                                <th class="py-3 px-3 text-center">Absent Days</th>
+                                <th class="py-3 px-3">Per Day Rate (₹)</th>
+                                <th class="py-3 px-3">Gross Earned (₹)</th>
+                                <th class="py-3 px-3 text-red-600">Total Advances (₹)</th>
+                                <th class="py-3 px-3 text-indigo-600 font-bold">Net Payable (₹)</th>
+                                <th class="py-3 px-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summary-table-body" class="divide-y divide-slate-100">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 5: COMPANY PROFILE ================= -->
+        <section id="tab-company" class="hidden space-y-6 max-w-xl mx-auto">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-900 mb-1">Company Profile Configuration</h2>
+                <p class="text-xs text-slate-500 mb-6">Update your business details to appear on reports and share links.</p>
+
+                <form id="company-form" onsubmit="handleCompanySubmit(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Company Name *</label>
+                        <input type="text" id="comp-name" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="e.g. NG Electronic Goods">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Business Address</label>
+                        <textarea id="comp-address" rows="2" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Enter company address"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Contact Phone Number</label>
+                        <input type="tel" id="comp-phone" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="e.g. 9876543210">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Saved WhatsApp Phone Number (with Country Code for Direct Share)</label>
+                        <input type="text" id="comp-whatsapp" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="e.g. 919876543210">
+                    </div>
+                    <div class="pt-4 flex justify-end">
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-lg text-sm shadow-sm transition-colors">
+                            Save Company Profile
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ================= STAFF MODAL (ADD / EDIT) ================= -->
+    <div id="staff-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 overflow-y-auto">
+        <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <h3 id="modal-title" class="font-bold text-slate-800 text-base">Add New Staff Member</h3>
+                <button onclick="closeStaffModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="staff-form" onsubmit="handleStaffSubmit(event)" class="p-6 overflow-y-auto space-y-4 flex-1">
+                <input type="hidden" id="staff-id">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Full Name *</label>
+                        <input type="text" id="staff-name" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="e.g. R.Selvakumar">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Default In Time *</label>
+                        <input type="time" id="staff-default-in" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" value="09:30">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Default Out Time *</label>
+                        <input type="time" id="staff-default-out" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" value="19:00">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Date of Joining</label>
+                        <input type="date" id="staff-doj" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Date of Birth</label>
+                        <input type="date" id="staff-dob" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Reference Person Name</label>
+                        <input type="text" id="staff-ref-name" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="e.g. Kumar">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Reference Phone Number</label>
+                        <input type="tel" id="staff-ref-phone" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="e.g. 9876543210">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Aadhaar Number</label>
+                        <input type="text" id="staff-aadhaar" maxlength="14" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="XXXX-XXXX-XXXX">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Salary / Day (₹)</label>
+                        <input type="number" id="staff-salary-day" min="0" step="any" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="500">
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Permanent Address</label>
+                        <textarea id="staff-perm-addr" rows="2" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Enter full permanent address"></textarea>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Temporary Address</label>
+                        <textarea id="staff-temp-addr" rows="2" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Enter temporary address"></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+                    <button type="button" onclick="closeStaffModal()" class="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-sm transition-colors">
+                        Save Staff Record
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        const INITIAL_STAFF = [
+            { id: "1", name: "R.selvakumar", defaultIn: "09:30", defaultOut: "19:00", doj: "2023-01-15", dob: "1992-05-10", refName: "M.Raman", refPhone: "9876543210", permAddr: "12, Main St, Madurai", tempAddr: "Same as permanent", aadhaar: "XXXX-XXXX-1234", salaryDay: 600 },
+            { id: "2", name: "Dilip", defaultIn: "09:30", defaultOut: "19:00", doj: "2023-03-20", dob: "1995-08-22", refName: "S.Suresh", refPhone: "9876543211", permAddr: "45, Cross St, Madurai", tempAddr: "Hostel, Madurai", aadhaar: "XXXX-XXXX-5678", salaryDay: 550 },
+            { id: "3", name: "T.Pandiyaraj", defaultIn: "09:30", defaultOut: "19:00", doj: "2022-11-01", dob: "1990-12-05", refName: "K.Velu", refPhone: "9876543212", permAddr: "88, West St, Madurai", tempAddr: "Same as permanent", aadhaar: "XXXX-XXXX-9012", salaryDay: 650 },
+            { id: "4", name: "Vasi", defaultIn: "09:30", defaultOut: "19:00", doj: "2023-06-10", dob: "1998-02-14", refName: "A.Kumar", refPhone: "9876543213", permAddr: "3, Park Ave, Madurai", tempAddr: "PG, Madurai", aadhaar: "XXXX-XXXX-3456", salaryDay: 500 },
+            { id: "5", name: "Naveen", defaultIn: "09:30", defaultOut: "19:00", doj: "2023-08-01", dob: "1997-09-18", refName: "P.Raja", refPhone: "9876543214", permAddr: "19, North St, Madurai", tempAddr: "Madurai", aadhaar: "XXXX-XXXX-7890", salaryDay: 500 }
+        ];
+
+        const INITIAL_ATTENDANCE_SEED = {
+            "1": { inTime: "09:40", outTime: "19:20", advance: 200, status: "Present" },
+            "2": { inTime: "10:10", outTime: "19:20", advance: 0, status: "Present" },
+            "3": { inTime: "09:50", outTime: "20:10", advance: 500, status: "Present" },
+            "4": { inTime: "", outTime: "", advance: 0, status: "Absent" },
+            "5": { inTime: "08:30", outTime: "14:20", advance: 100, status: "Half day" }
+        };
+
+        let staffList = [];
+        let attendanceRecords = {};
+        let companyProfile = {
+            name: "NG Electronic Goods & ANG Batteries",
+            address: "KMS Muthulakshmi Complex, Karuppayurani, Madurai",
+            phone: "9876543210",
+            whatsapp: ""
+        };
+        let currentDate = new Date().toISOString().split('T')[0];
+
+        window.onload = function() {
+            lucide.createIcons();
+            initData();
+            document.getElementById('attendance-date-picker').value = currentDate;
+            document.getElementById('report-from-date').value = currentDate;
+            document.getElementById('report-to-date').value = currentDate;
+            loadAttendanceForDate();
+            populateReportFilters();
+            renderStaffGrid();
+            renderSummaryTable();
+            loadCompanyProfileToUI();
+        };
+
+        function initData() {
+            const savedStaff = localStorage.getItem('staff_data');
+            const savedAttendance = localStorage.getItem('attendance_data');
+            const savedCompany = localStorage.getItem('company_profile');
+
+            if (savedStaff) {
+                staffList = JSON.parse(savedStaff);
+                staffList.forEach(s => {
+                    if (!s.defaultIn) s.defaultIn = "09:30";
+                    if (!s.defaultOut) s.defaultOut = "19:00";
+                });
+            } else {
+                staffList = [...INITIAL_STAFF];
+                localStorage.setItem('staff_data', JSON.stringify(staffList));
+            }
+
+            if (savedAttendance) {
+                attendanceRecords = JSON.parse(savedAttendance);
+            } else {
+                attendanceRecords[currentDate] = INITIAL_ATTENDANCE_SEED;
+                localStorage.setItem('attendance_data', JSON.stringify(attendanceRecords));
+            }
+
+            if (savedCompany) {
+                companyProfile = JSON.parse(savedCompany);
+            } else {
+                localStorage.setItem('company_profile', JSON.stringify(companyProfile));
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('staff_data', JSON.stringify(staffList));
+            localStorage.setItem('attendance_data', JSON.stringify(attendanceRecords));
+            localStorage.setItem('company_profile', JSON.stringify(companyProfile));
+        }
+
+        function loadCompanyProfileToUI() {
+            document.getElementById('header-company-name').innerText = companyProfile.name || "StaffSync";
+            document.getElementById('header-company-sub').innerText = companyProfile.address ? `${companyProfile.address} | Ph: ${companyProfile.phone}` : "Attendance & Staff Portal";
+
+            document.getElementById('comp-name').value = companyProfile.name || "";
+            document.getElementById('comp-address').value = companyProfile.address || "";
+            document.getElementById('comp-phone').value = companyProfile.phone || "";
+            document.getElementById('comp-whatsapp').value = companyProfile.whatsapp || "";
+
+            document.getElementById('print-comp-name').innerText = companyProfile.name || "";
+            document.getElementById('print-comp-addr').innerText = companyProfile.address || "";
+            document.getElementById('print-comp-phone').innerText = companyProfile.phone ? `Phone: ${companyProfile.phone}` : "";
+        }
+
+        function handleCompanySubmit(e) {
+            e.preventDefault();
+            companyProfile.name = document.getElementById('comp-name').value.trim();
+            companyProfile.address = document.getElementById('comp-address').value.trim();
+            companyProfile.phone = document.getElementById('comp-phone').value.trim();
+            companyProfile.whatsapp = document.getElementById('comp-whatsapp').value.trim();
+
+            saveData();
+            loadCompanyProfileToUI();
+            showToast("Company profile updated successfully!");
+        }
+
+        function switchTab(tabName) {
+            const tabs = ['attendance', 'reports', 'staff', 'summary', 'company'];
+            tabs.forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                const btn = document.getElementById(`tab-btn-${t}`);
+                if (t === tabName) {
+                    el.classList.remove('hidden');
+                    btn.className = "px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 bg-indigo-600 text-white";
+                } else {
+                    el.classList.add('hidden');
+                    btn.className = "px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800";
+                }
+            });
+            if (tabName === 'reports') {
+                populateReportFilters();
+                renderReportTable();
+            }
+            if (tabName === 'staff') renderStaffGrid();
+            if (tabName === 'summary') renderSummaryTable();
+            if (tabName === 'attendance') renderAttendanceTable();
+            if (tabName === 'company') loadCompanyProfileToUI();
+        }
+
+        // ================= COMPUTATION ENGINE =================
+        function timeToMinutes(timeStr) {
+            if (!timeStr) return null;
+            const [hrs, mins] = timeStr.split(':').map(Number);
+            return hrs * 60 + mins;
+        }
+
+        function formatMinutesToHHMM(minutes) {
+            if (minutes === null || isNaN(minutes) || minutes < 0) return '00:00';
+            const hrs = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+        }
+
+        function computeRowCalculations(inTimeStr, outTimeStr, status, defaultInStr = "09:30", defaultOutStr = "19:00") {
+            const defaultInMins = timeToMinutes(defaultInStr);
+            const defaultOutMins = timeToMinutes(defaultOutStr);
+
+            if (status === 'Absent' || !inTimeStr) {
+                return { earlyComing: '00:00', lateComing: '00:00', otHours: '00:00', totalHours: '00:00', totalMinutes: 0 };
+            }
+
+            const inMins = timeToMinutes(inTimeStr);
+            const outMins = timeToMinutes(outTimeStr);
+
+            let earlyMins = 0;
+            if (inMins !== null && defaultInMins !== null && inMins < defaultInMins) {
+                earlyMins = defaultInMins - inMins;
+            }
+
+            let lateMins = 0;
+            if (inMins !== null && defaultInMins !== null && inMins > defaultInMins) {
+                lateMins = inMins - defaultInMins;
+            }
+
+            let totalMins = 0;
+            if (inMins !== null && outMins !== null && outMins >= inMins) {
+                totalMins = outMins - inMins;
+            }
+
+            let standardShiftMins = (defaultOutMins !== null && defaultInMins !== null && defaultOutMins >= defaultInMins) 
+                ? (defaultOutMins - defaultInMins) 
+                : (9.5 * 60);
+
+            let otMins = 0;
+            if (totalMins > standardShiftMins) {
+                otMins = totalMins - standardShiftMins;
+            }
+
+            return {
+                earlyComing: earlyMins > 0 ? formatMinutesToHHMM(earlyMins) : '00:00',
+                lateComing: lateMins > 0 ? formatMinutesToHHMM(lateMins) : '00:00',
+                otHours: otMins > 0 ? formatMinutesToHHMM(otMins) : '00:00',
+                totalHours: totalMins > 0 ? formatMinutesToHHMM(totalMins) : '00:00',
+                totalMinutes: totalMins
+            };
+        }
+
+        function loadAttendanceForDate() {
+            currentDate = document.getElementById('attendance-date-picker').value || currentDate;
+            renderAttendanceTable();
+        }
+
+        function renderAttendanceTable() {
+            const tbody = document.getElementById('attendance-table-body');
+            const emptyMsg = document.getElementById('empty-attendance-msg');
+            tbody.innerHTML = '';
+
+            if (staffList.length === 0) {
+                emptyMsg.classList.remove('hidden');
+                return;
+            } else {
+                emptyMsg.classList.add('hidden');
+            }
+
+            const dateRecord = attendanceRecords[currentDate] || {};
+
+            staffList.forEach((staff, index) => {
+                const record = dateRecord[staff.id] || { inTime: '', outTime: '', advance: 0, status: 'Present' };
+                const calc = computeRowCalculations(record.inTime, record.outTime, record.status, staff.defaultIn, staff.defaultOut);
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/80 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-3 text-center font-medium text-slate-500">${index + 1}</td>
+                    <td class="p-3 font-semibold text-slate-800">${escapeHtml(staff.name)}</td>
+                    <td class="p-3 text-slate-500 font-mono">${staff.defaultIn || '09:30'}</td>
+                    <td class="p-3">
+                        <input type="time" value="${record.inTime || ''}" oninput="handleTimeInput('${staff.id}')" id="in-${staff.id}" class="border border-slate-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500">
+                    </td>
+                    <td class="p-3 text-slate-500 font-mono">${staff.defaultOut || '19:00'}</td>
+                    <td class="p-3">
+                        <input type="time" value="${record.outTime || ''}" oninput="handleTimeInput('${staff.id}')" id="out-${staff.id}" class="border border-slate-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500">
+                    </td>
+                    <td class="p-3 font-mono text-emerald-600 font-medium" id="early-${staff.id}">${calc.earlyComing}</td>
+                    <td class="p-3 font-mono text-amber-600 font-medium" id="late-${staff.id}">${calc.lateComing}</td>
+                    <td class="p-3 font-mono text-indigo-600 font-medium" id="ot-${staff.id}">${calc.otHours}</td>
+                    <td class="p-3 font-mono font-bold text-slate-800" id="total-${staff.id}">${calc.totalHours}</td>
+                    <td class="p-3">
+                        <input type="number" min="0" step="any" placeholder="0" value="${record.advance || ''}" oninput="updateAttendanceRowUI('${staff.id}')" id="adv-${staff.id}" class="w-20 border border-red-200 focus:border-red-400 text-red-600 font-medium rounded px-2 py-1 text-xs focus:ring-1 focus:ring-red-500">
+                    </td>
+                    <td class="p-3">
+                        <select onchange="handleStatusChange('${staff.id}')" id="status-${staff.id}" class="border border-slate-300 rounded px-2 py-1 text-xs font-medium focus:ring-1 focus:ring-indigo-500">
+                            <option value="Present" ${record.status === 'Present' ? 'selected' : ''}>Present</option>
+                            <option value="Absent" ${record.status === 'Absent' ? 'selected' : ''}>Absent</option>
+                            <option value="Half day" ${record.status === 'Half day' ? 'selected' : ''}>Half day</option>
+                        </select>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        function handleTimeInput(staffId) {
+            const staff = staffList.find(s => s.id === staffId);
+            const inInput = document.getElementById(`in-${staffId}`);
+            const outInput = document.getElementById(`out-${staffId}`);
+            const statusSelect = document.getElementById(`status-${staffId}`);
+
+            const inVal = inInput.value;
+            const outVal = outInput.value;
+            let currentStatus = statusSelect.value;
+
+            if (inVal && outVal) {
+                const calc = computeRowCalculations(inVal, outVal, 'Present', staff ? staff.defaultIn : "09:30", staff ? staff.defaultOut : "19:00");
+                if (calc.totalMinutes >= 360) {
+                    currentStatus = "Present";
+                } else if (calc.totalMinutes > 0) {
+                    currentStatus = "Half day";
+                }
+                statusSelect.value = currentStatus;
+            }
+
+            updateAttendanceRowUI(staffId);
+        }
+
+        function handleStatusChange(staffId) {
+            const staff = staffList.find(s => s.id === staffId);
+            const inInput = document.getElementById(`in-${staffId}`);
+            const outInput = document.getElementById(`out-${staffId}`);
+            const statusSelect = document.getElementById(`status-${staffId}`);
+            const statusVal = statusSelect.value;
+
+            if (statusVal === "Present") {
+                inInput.value = staff ? staff.defaultIn : "09:30";
+                outInput.value = staff ? staff.defaultOut : "19:00";
+            } else if (statusVal === "Absent") {
+                inInput.value = "";
+                outInput.value = "";
+            }
+
+            updateAttendanceRowUI(staffId);
+        }
+
+        function updateAttendanceRowUI(staffId) {
+            const staff = staffList.find(s => s.id === staffId);
+            const inVal = document.getElementById(`in-${staffId}`).value;
+            const outVal = document.getElementById(`out-${staffId}`).value;
+            const statusVal = document.getElementById(`status-${staffId}`).value;
+            const advanceVal = parseFloat(document.getElementById(`adv-${staffId}`).value) || 0;
+
+            const calc = computeRowCalculations(inVal, outVal, statusVal, staff ? staff.defaultIn : "09:30", staff ? staff.defaultOut : "19:00");
+
+            document.getElementById(`early-${staffId}`).innerText = calc.earlyComing;
+            document.getElementById(`late-${staffId}`).innerText = calc.lateComing;
+            document.getElementById(`ot-${staffId}`).innerText = calc.otHours;
+            document.getElementById(`total-${staffId}`).innerText = calc.totalHours;
+
+            if (!attendanceRecords[currentDate]) {
+                attendanceRecords[currentDate] = {};
+            }
+            attendanceRecords[currentDate][staffId] = {
+                inTime: inVal,
+                outTime: outVal,
+                advance: advanceVal,
+                status: statusVal
+            };
+        }
+
+        function saveAttendance() {
+            saveData();
+            showToast("Attendance sheet saved successfully!");
+        }
+
+        function resetDefaults() {
+            if (confirm("Reset current date's attendance to default values?")) {
+                attendanceRecords[currentDate] = JSON.parse(JSON.stringify(INITIAL_ATTENDANCE_SEED));
+                saveData();
+                renderAttendanceTable();
+                showToast("Reset to initial default entries.");
+            }
+        }
+
+        // ================= HISTORY & REPORTS & WHATSAPP SHARING =================
+        function populateReportFilters() {
+            const select = document.getElementById('report-staff-filter');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="ALL">All Staff Members</option>';
+            staffList.forEach(staff => {
+                const opt = document.createElement('option');
+                opt.value = staff.id;
+                opt.textContent = staff.name;
+                select.appendChild(opt);
+            });
+            select.value = currentVal || "ALL";
+        }
+
+        function toggleColumn(colKey) {
+            const isChecked = document.getElementById(`chk-col-${colKey}`).checked;
+            const elements = document.querySelectorAll(`.col-${colKey}`);
+            elements.forEach(el => {
+                el.style.display = isChecked ? '' : 'none';
+            });
+        }
+
+        function triggerPrintWithColumns() {
+            const map = {
+                'date': 'chk-col-date',
+                'name': 'chk-col-name',
+                'def-in': 'chk-col-def-in',
+                'in': 'chk-col-in',
+                'def-out': 'chk-col-def-out',
+                'out': 'chk-col-out',
+                'early': 'chk-col-early',
+                'late': 'chk-col-late',
+                'ot': 'chk-col-ot',
+                'total': 'chk-col-total',
+                'adv': 'chk-col-adv',
+                'status': 'chk-col-status'
+            };
+
+            for (let key in map) {
+                const checked = document.getElementById(map[key]).checked;
+                document.documentElement.style.setProperty(`--disp-${key}`, checked ? 'table-cell' : 'none');
+            }
+
+            window.print();
+        }
+
+        function getFilteredReportData() {
+            const selectedStaffId = document.getElementById('report-staff-filter').value;
+            const fromDate = document.getElementById('report-from-date').value;
+            const toDate = document.getElementById('report-to-date').value;
+
+            const rows = [];
+            const sortedDates = Object.keys(attendanceRecords).sort();
+
+            sortedDates.forEach(dateStr => {
+                if ((fromDate && dateStr < fromDate) || (toDate && dateStr > toDate)) {
+                    return;
+                }
+
+                const dayData = attendanceRecords[dateStr];
+                staffList.forEach(staff => {
+                    if (selectedStaffId !== 'ALL' && staff.id !== selectedStaffId) {
+                        return;
+                    }
+
+                    const rec = dayData[staff.id];
+                    if (rec) {
+                        const calc = computeRowCalculations(rec.inTime, rec.outTime, rec.status, staff.defaultIn, staff.defaultOut);
+                        rows.push({
+                            date: dateStr,
+                            staffId: staff.id,
+                            staffName: staff.name,
+                            salaryDay: staff.salaryDay || 0,
+                            defaultIn: staff.defaultIn || '09:30',
+                            defaultOut: staff.defaultOut || '19:00',
+                            inTime: rec.inTime || '',
+                            outTime: rec.outTime || '',
+                            earlyComing: calc.earlyComing,
+                            lateComing: calc.lateComing,
+                            otHours: calc.otHours,
+                            totalHours: calc.totalHours,
+                            advance: rec.advance || 0,
+                            status: rec.status
+                        });
+                    }
+                });
+            });
+
+            return rows;
+        }
+
+        function renderReportTable() {
+            const tbody = document.getElementById('report-table-body');
+            const emptyMsg = document.getElementById('empty-report-msg');
+            const subtitle = document.getElementById('report-subtitle');
+            tbody.innerHTML = '';
+
+            const reportData = getFilteredReportData();
+            subtitle.innerText = `Showing ${reportData.length} records`;
+
+            let presentCount = 0;
+            let halfDayCount = 0;
+            let absentCount = 0;
+            let totalGrossSalary = 0;
+            let totalAdvanceReceived = 0;
+
+            reportData.forEach(row => {
+                if (row.status === 'Present') {
+                    presentCount++;
+                    totalGrossSalary += row.salaryDay;
+                } else if (row.status === 'Half day') {
+                    halfDayCount++;
+                    totalGrossSalary += (row.salaryDay * 0.5);
+                } else if (row.status === 'Absent') {
+                    absentCount++;
+                }
+                totalAdvanceReceived += parseFloat(row.advance) || 0;
+            });
+
+            const balanceSalary = Math.max(0, totalGrossSalary - totalAdvanceReceived);
+
+            document.getElementById('card-present-days').innerText = presentCount;
+            document.getElementById('card-half-days').innerText = halfDayCount;
+            document.getElementById('card-absent-days').innerText = absentCount;
+            document.getElementById('card-gross-salary').innerText = `₹${totalGrossSalary.toLocaleString('en-IN')}`;
+            document.getElementById('card-advance-received').innerText = `₹${totalAdvanceReceived.toLocaleString('en-IN')}`;
+            document.getElementById('card-balance-salary').innerText = `₹${balanceSalary.toLocaleString('en-IN')}`;
+
+            if (reportData.length === 0) {
+                emptyMsg.classList.remove('hidden');
+                return;
+            } else {
+                emptyMsg.classList.add('hidden');
+            }
+
+            reportData.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-3 font-medium text-slate-800 col-date">${row.date}</td>
+                    <td class="p-3 font-semibold text-slate-800 col-name">${escapeHtml(row.staffName)}</td>
+                    <td class="p-3 text-slate-500 font-mono col-def-in">${row.defaultIn}</td>
+                    <td class="p-3 text-slate-700 font-mono col-in">${row.inTime || '-'}</td>
+                    <td class="p-3 text-slate-500 font-mono col-def-out">${row.defaultOut}</td>
+                    <td class="p-3 text-slate-700 font-mono col-out">${row.outTime || '-'}</td>
+                    <td class="p-3 font-mono text-emerald-600 font-medium col-early">${row.earlyComing || '00:00'}</td>
+                    <td class="p-3 font-mono text-amber-600 font-medium col-late">${row.lateComing || '00:00'}</td>
+                    <td class="p-3 font-mono text-indigo-600 font-medium col-ot">${row.otHours || '00:00'}</td>
+                    <td class="p-3 font-mono font-bold text-slate-800 col-total">${row.totalHours || '00:00'}</td>
+                    <td class="p-3 font-mono text-red-600 font-medium col-adv">₹${row.advance || 0}</td>
+                    <td class="p-3 col-status">
+                        <span class="px-2 py-0.5 rounded text-xs font-medium ${
+                            row.status === 'Present' ? 'bg-emerald-100 text-emerald-800' :
+                            row.status === 'Absent' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+                        }">${row.status}</span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            ['date', 'name', 'def-in', 'in', 'def-out', 'out', 'early', 'late', 'ot', 'total', 'adv', 'status'].forEach(key => {
+                toggleColumn(key);
+            });
+
+            lucide.createIcons();
+        }
+
+        function shareReportToWhatsApp() {
+            const reportData = getFilteredReportData();
+            if (reportData.length === 0) {
+                showToast("No records available to send!");
+                return;
+            }
+
+            let presentCount = 0;
+            let halfDayCount = 0;
+            let absentCount = 0;
+            let totalGross = 0;
+            let totalAdv = 0;
+
+            reportData.forEach(r => {
+                if (r.status === 'Present') { presentCount++; totalGross += r.salaryDay; }
+                else if (r.status === 'Half day') { halfDayCount++; totalGross += (r.salaryDay * 0.5); }
+                else if (r.status === 'Absent') { absentCount++; }
+                totalAdv += parseFloat(r.advance) || 0;
+            });
+
+            const balance = Math.max(0, totalGross - totalAdv);
+            const staffFilterText = document.getElementById('report-staff-filter').selectedOptions[0].text;
+            const fromDate = document.getElementById('report-from-date').value || 'Start';
+            const toDate = document.getElementById('report-to-date').value || 'End';
+
+            let msg = `*📊 ATTENDANCE & PAYROLL REPORT* %0a`;
+            msg += `🏢 *${companyProfile.name || 'Company'}* %0a`;
+            msg += `👤 Staff: ${staffFilterText} %0a`;
+            msg += `📅 Period: ${fromDate} to ${toDate} %0a%0a`;
+            msg += `✅ Present Days: ${presentCount} %0a`;
+            msg += `⚠️ Half Days: ${halfDayCount} %0a`;
+            msg += `❌ Absent Days: ${absentCount} %0a`;
+            msg += `💰 Gross Salary: ₹${totalGross.toLocaleString('en-IN')} %0a`;
+            msg += `🔴 Advance Received: ₹${totalAdv.toLocaleString('en-IN')} %0a`;
+            msg += `💵 *Balance Payable: ₹${balance.toLocaleString('en-IN')}* %0a%0a`;
+            msg += `_Generated via StaffSync_`;
+
+            const phone = companyProfile.whatsapp ? companyProfile.whatsapp.replace(/[^0-9]/g, '') : '';
+            const url = `https://api.whatsapp.com/send?phone=${phone}&text=${msg}`;
+            window.open(url, '_blank');
+        }
+
+        function exportReportToCSV() {
+            const data = getFilteredReportData();
+            if (data.length === 0) {
+                showToast("No data to export!");
+                return;
+            }
+
+            let csv = "Date,Staff Name,Default In,In Time,Default Out,Out Time,Early Coming,Late Coming,OT Hours,Total Hours,Daily Advance,Status\n";
+            data.forEach(r => {
+                csv += `"${r.date}","${r.staffName}","${r.defaultIn}","${r.inTime}","${r.defaultOut}","${r.outTime}","${r.earlyComing}","${r.lateComing}","${r.otHours}","${r.totalHours}","${r.advance}","${r.status}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `Attendance_Report.csv`);
+            a.click();
+            showToast("Exported history report CSV.");
+        }
+
+        // ================= STAFF CRUD OPERATIONS =================
+        function renderStaffGrid() {
+            const grid = document.getElementById('staff-grid');
+            const emptyMsg = document.getElementById('empty-staff-msg');
+            grid.innerHTML = '';
+
+            if (staffList.length === 0) {
+                emptyMsg.classList.remove('hidden');
+                return;
+            } else {
+                emptyMsg.classList.add('hidden');
+            }
+
+            staffList.forEach(staff => {
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between hover:shadow-md transition-shadow";
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-base">${escapeHtml(staff.name)}</h3>
+                                <p class="text-xs text-indigo-600 font-medium">DOJ: ${staff.doj || 'N/A'}</p>
+                            </div>
+                            <div class="flex items-center space-x-1">
+                                <button onclick="editStaff('${staff.id}')" title="Edit Staff" class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                                    <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteStaff('${staff.id}')" title="Delete Staff" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 space-y-2 text-xs text-slate-600">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400"></i>
+                                <span>Shift: <strong>${staff.defaultIn || '09:30'} - ${staff.defaultOut || '19:00'}</strong></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="cake" class="w-3.5 h-3.5 text-slate-400"></i>
+                                <span>DOB: <strong>${staff.dob || 'N/A'}</strong></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="user-check" class="w-3.5 h-3.5 text-slate-400"></i>
+                                <span>Ref: <strong>${escapeHtml(staff.refName || 'N/A')}</strong> (${escapeHtml(staff.refPhone || 'N/A')})</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="credit-card" class="w-3.5 h-3.5 text-slate-400"></i>
+                                <span>Aadhaar: <strong>[Redacted]</strong></span>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 mt-0.5"></i>
+                                <span>Perm Addr: ${escapeHtml(staff.permAddr || 'N/A')}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span class="text-slate-500">Daily: <strong class="text-slate-700">₹${staff.salaryDay || 0}</strong></span>
+                        <span class="text-indigo-600 font-semibold bg-indigo-50 px-2 py-1 rounded">26D Est: ₹${(staff.salaryDay || 0) * 26}</span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        function openStaffModal(staffId = null) {
+            const modal = document.getElementById('staff-modal');
+            const form = document.getElementById('staff-form');
+            form.reset();
+
+            if (staffId) {
+                document.getElementById('modal-title').innerText = "Edit Staff Details";
+                const staff = staffList.find(s => s.id === staffId);
+                if (staff) {
+                    document.getElementById('staff-id').value = staff.id;
+                    document.getElementById('staff-name').value = staff.name;
+                    document.getElementById('staff-default-in').value = staff.defaultIn || "09:30";
+                    document.getElementById('staff-default-out').value = staff.defaultOut || "19:00";
+                    document.getElementById('staff-doj').value = staff.doj;
+                    document.getElementById('staff-dob').value = staff.dob;
+                    document.getElementById('staff-ref-name').value = staff.refName;
+                    document.getElementById('staff-ref-phone').value = staff.refPhone;
+                    document.getElementById('staff-aadhaar').value = "";
+                    document.getElementById('staff-perm-addr').value = staff.permAddr;
+                    document.getElementById('staff-temp-addr').value = staff.tempAddr;
+                    document.getElementById('staff-salary-day').value = staff.salaryDay;
+                }
+            } else {
+                document.getElementById('modal-title').innerText = "Add New Staff Member";
+                document.getElementById('staff-id').value = "";
+                document.getElementById('staff-default-in').value = "09:30";
+                document.getElementById('staff-default-out').value = "19:00";
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeStaffModal() {
+            document.getElementById('staff-modal').classList.add('hidden');
+        }
+
+        function handleStaffSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('staff-id').value;
+            const salaryDay = parseFloat(document.getElementById('staff-salary-day').value) || 0;
+
+            const staffObj = {
+                id: id || Date.now().toString(),
+                name: document.getElementById('staff-name').value.trim(),
+                defaultIn: document.getElementById('staff-default-in').value || "09:30",
+                defaultOut: document.getElementById('staff-default-out').value || "19:00",
+                doj: document.getElementById('staff-doj').value,
+                dob: document.getElementById('staff-dob').value,
+                refName: document.getElementById('staff-ref-name').value.trim(),
+                refPhone: document.getElementById('staff-ref-phone').value.trim(),
+                aadhaar: '[Redacted]',
+                permAddr: document.getElementById('staff-perm-addr').value.trim(),
+                tempAddr: document.getElementById('staff-temp-addr').value.trim(),
+                salaryDay: salaryDay
+            };
+
+            if (id) {
+                const index = staffList.findIndex(s => s.id === id);
+                if (index !== -1) staffList[index] = staffObj;
+                showToast("Staff updated successfully.");
+            } else {
+                staffList.push(staffObj);
+                showToast("New staff added successfully.");
+            }
+
+            saveData();
+            closeStaffModal();
+            renderStaffGrid();
+            renderSummaryTable();
+            renderAttendanceTable();
+        }
+
+        function editStaff(id) {
+            openStaffModal(id);
+        }
+
+        function deleteStaff(id) {
+            if (confirm("Are you sure you want to delete this staff member?")) {
+                staffList = staffList.filter(s => s.id !== id);
+                saveData();
+                renderStaffGrid();
+                renderSummaryTable();
+                renderAttendanceTable();
+                showToast("Staff record removed.");
+            }
+        }
+
+        // ================= TAB 4: SUMMARY & PAYROLL =================
+        function renderSummaryTable() {
+            const tbody = document.getElementById('summary-table-body');
+            tbody.innerHTML = '';
+
+            staffList.forEach(staff => {
+                let presentCount = 0;
+                let halfDayCount = 0;
+                let absentCount = 0;
+                let totalAdvancesTaken = 0;
+
+                Object.values(attendanceRecords).forEach(dayRecord => {
+                    const rec = dayRecord[staff.id];
+                    if (rec) {
+                        if (rec.status === 'Present') presentCount++;
+                        else if (rec.status === 'Half day') halfDayCount++;
+                        else if (rec.status === 'Absent') absentCount++;
+
+                        totalAdvancesTaken += parseFloat(rec.advance) || 0;
+                    }
+                });
+
+                const dayRate = staff.salaryDay || 0;
+                const grossEarned = (presentCount * dayRate) + (halfDayCount * dayRate * 0.5);
+                const netPayable = Math.max(0, grossEarned - totalAdvancesTaken);
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="py-3 px-3 font-semibold text-slate-800">${escapeHtml(staff.name)}</td>
+                    <td class="py-3 px-3 text-center font-mono font-medium text-emerald-600">${presentCount}</td>
+                    <td class="py-3 px-3 text-center font-mono font-medium text-amber-600">${halfDayCount}</td>
+                    <td class="py-3 px-3 text-center font-mono font-medium text-red-600">${absentCount}</td>
+                    <td class="py-3 px-3 text-slate-700 font-medium">₹${dayRate}</td>
+                    <td class="py-3 px-3 text-slate-800 font-semibold">₹${grossEarned.toLocaleString('en-IN')}</td>
+                    <td class="py-3 px-3 text-red-600 font-medium">- ₹${totalAdvancesTaken.toLocaleString('en-IN')}</td>
+                    <td class="py-3 px-3 text-indigo-600 font-bold text-base">₹${netPayable.toLocaleString('en-IN')}</td>
+                    <td class="py-3 px-3 text-right">
+                        <button onclick="openStaffModal('${staff.id}')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-md font-medium transition-colors">Edit Day Rate</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ================= EXPORT & IMPORT DATA =================
+        function exportToCSV() {
+            let csv = "Serial Number,Name,Default In Time,In Time,Default Out Time,Out Time,Early Coming Time,Late Coming Time,OT Hours,Total Working Hours,Daily Advance,Status\n";
+
+            const dateRecord = attendanceRecords[currentDate] || {};
+
+            staffList.forEach((staff, index) => {
+                const record = dateRecord[staff.id] || { inTime: '', outTime: '', advance: 0, status: 'Present' };
+                const calc = computeRowCalculations(record.inTime, record.outTime, record.status, staff.defaultIn, staff.defaultOut);
+
+                const row = [
+                    index + 1,
+                    `"${staff.name}"`,
+                    staff.defaultIn || "09:30",
+                    record.inTime || "",
+                    staff.defaultOut || "19:00",
+                    record.outTime || "",
+                    calc.earlyComing,
+                    calc.lateComing,
+                    calc.otHours,
+                    calc.totalHours,
+                    record.advance || 0,
+                    record.status
+                ].join(",");
+                csv += row + "\n";
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `Attendance_${currentDate}.csv`);
+            a.click();
+            showToast("Exported CSV file.");
+        }
+
+        function triggerImport() {
+            document.getElementById('import-file-input').click();
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.staffList && data.attendanceRecords) {
+                        staffList = data.staffList;
+                        attendanceRecords = data.attendanceRecords;
+                        saveData();
+                        renderStaffGrid();
+                        renderSummaryTable();
+                        renderAttendanceTable();
+                        showToast("Data imported successfully!");
+                    } else {
+                        alert("Invalid backup JSON format.");
+                    }
+                } catch (err) {
+                    alert("Failed to parse JSON file.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = "bg-slate-900 text-white text-xs px-4 py-2.5 rounded-lg shadow-lg flex items-center gap-2 border border-slate-700 animate-bounce";
+            toast.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i> <span>${message}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function escapeHtml(str) {
+            return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+    </script>
+</body>
+</html>
